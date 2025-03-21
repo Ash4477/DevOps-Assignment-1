@@ -63,6 +63,7 @@ const server = http.createServer((req, res) => {
   }
   res.writeHead(200, {
     "content-type": "application/json",
+    "access-control-allow-origin": "*",
   });
   res.write(JSON.stringify(pokemonList));
   res.end();
