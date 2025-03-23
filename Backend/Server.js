@@ -1,5 +1,11 @@
 import http from "http";
 import url from "url";
+import process from "process";
+import mongoose, { mongo } from "mongoose";
+import mongodb from "mongodb";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const pokeList = [
   {
@@ -54,13 +60,41 @@ const pokeList = [
   },
 ];
 
-const server = http.createServer((req, res) => {
-  const queryObj = url.parse(req.url, true).query;
-  const limit = queryObj.limit || 5;
-  let pokemonList = [];
-  for (let i = 0; i < limit; i++) {
-    pokemonList.push(pokeList[i]);
+// Connection to Mongoose
+const client = new mongodb.MongoClient(process.env.MONGO_URI, {
+  serverApi: {
+    version: mongodb.ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
+
+async function connectDB() {
+  try {
+    await client.connect();
+    console.log("✅ Connected to MongoDB!");
+  } catch (error) {
+    console.error("❌ MongoDB Connection Error:", error);
+    process.exit(1);
   }
+}
+
+await connectDB();
+
+const db = client.db("pokemon_data");
+const pokemonCollection = db.collection("pokemons");
+
+// Server
+const server = http.createServer(async (req, res) => {
+  const queryObj = url.parse(req.url, true).query;
+  const limit = Number(queryObj.limit) || 5;
+
+  const pokemonList = await pokemonCollection
+    .find({})
+    .limit(limit)
+    .project({ pokeName: 1, pokeImageUrl: 1, _id: 0 })
+    .toArray();
+
   res.writeHead(200, {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
